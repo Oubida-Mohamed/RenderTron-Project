@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc",
     "prepack": "npm run build",
-    "start": "node build/rendertron.js",
+    "start": "PORT=4001 node build/rendertron.js",
     "format": "npm run format:eslint && npm run format:prettier",
     "format:eslint": "npm run lint -- --fix",
     "format:prettier": "prettier \"**/*.{html,js,json,md,ts}\" --ignore-path .gitignore --write",
