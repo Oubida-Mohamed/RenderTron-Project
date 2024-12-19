@@ -8,7 +8,7 @@ import path from 'path';
 import puppeteer from 'puppeteer';
 import url from 'url';
 
-import { Renderer, ScreenshotError } from './renderer';
+import { Renderer } from './renderer';
 import { Config, ConfigManager } from './config';
 
 /**
@@ -212,7 +212,7 @@ export class Rendertron {
       ctx.set('Content-Length', img.length.toString());
       ctx.body = img;
     } catch (error) {
-      const err = error as ScreenshotError;
+      const err = error as any;
       ctx.status = err.type === 'Forbidden' ? 403 : 500;
     }
   }

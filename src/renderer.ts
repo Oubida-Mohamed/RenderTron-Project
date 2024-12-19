@@ -19,7 +19,7 @@ const MOBILE_USERAGENT =
   'Mozilla/5.0 (Linux; Android 8.0.0; Pixel 2 XL Build/OPD1.170816.004) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.75 Mobile Safari/537.36';
 
 /**
- * Wraps Puppeteer's interface to Headless Chrome to expose high level rendering
+ * Wraps Puppeteer's interface to Headless Chrome to expose high-level rendering
  * APIs that are able to handle web components and PWAs.
  */
 export class Renderer {
@@ -108,7 +108,7 @@ export class Renderer {
     if (timezoneId) {
       try {
         await page.emulateTimezone(timezoneId);
-      } catch (e) {
+      } catch (e:any) {
         if (e.message.includes('Invalid timezone')) {
           return {
             status: 400,
@@ -136,22 +136,19 @@ export class Renderer {
     });
 
     let response: puppeteer.HTTPResponse | null = null;
-    // Capture main frame response. This is used in the case that rendering
-    // times out, which results in puppeteer throwing an error. This allows us
-    // to return a partial response for what was able to be rendered in that
-    // time frame.
-    page.on('response', (r: puppeteer.HTTPResponse) => {
-      if (!response) {
-        response = r;
-      }
-    });
 
     try {
-      // Navigate to page. Wait until there are no oustanding network requests.
+      // Navigate to page. Wait until there are no outstanding network requests.
       response = await page.goto(requestUrl, {
         timeout: this.config.timeout,
         waitUntil: 'networkidle0',
       });
+
+      // Wait for the page to indicate it's ready by checking window.rendertronReady
+      await page.waitForFunction('window.rendertronReady === true', {
+        timeout: 60000, // Wait for 60 seconds max
+      });
+
     } catch (e) {
       console.error(e);
     }
@@ -183,22 +180,17 @@ export class Renderer {
     let statusCode = response.status();
     const newStatusCode = await page
       .$eval('meta[name="render:status_code"]', (element) =>
-        parseInt(element.getAttribute('content') || '')
-      )
+        parseInt(element.getAttribute('content') || ''))
       .catch(() => undefined);
-    // On a repeat visit to the same origin, browser cache is enabled, so we may
-    // encounter a 304 Not Modified. Instead we'll treat this as a 200 OK.
+
     if (statusCode === 304) {
       statusCode = 200;
     }
-    // Original status codes which aren't 200 always return with that status
-    // code, regardless of meta tags.
+
     if (statusCode === 200 && newStatusCode) {
       statusCode = newStatusCode;
     }
 
-    // Check for <meta name="render:header" content="key:value" /> tag to allow a custom header in the response
-    // to the crawlers.
     const customHeaders = await page
       .$eval('meta[name="render:header"]', (element) => {
         const result = new Map<string, string>();
@@ -218,7 +210,8 @@ export class Renderer {
 
     // Remove script & import tags.
     await page.evaluate(stripPage);
-    // Inject <base> tag with the origin of the request (ie. no path).
+
+    // Inject <base> tag with the origin of the request (i.e., no path).
     const parsedUrl = url.parse(requestUrl);
     await page.evaluate(
       injectBaseHref,
@@ -242,6 +235,7 @@ export class Renderer {
     };
   }
 
+
   async screenshot(
     url: string,
     isMobile: boolean,
@@ -250,21 +244,19 @@ export class Renderer {
     timezoneId?: string
   ): Promise<Buffer> {
     const page = await this.browser.newPage();
-
-    // Page may reload when setting isMobile
-    // https://github.com/GoogleChrome/puppeteer/blob/v1.10.0/docs/api.md#pagesetviewportviewport
+  
     await page.setViewport({
       width: dimensions.width,
       height: dimensions.height,
       isMobile,
     });
-
+  
     if (isMobile) {
       page.setUserAgent(MOBILE_USERAGENT);
     }
-
+  
     await page.setRequestInterception(true);
-
+  
     page.addListener('request', (interceptedRequest: puppeteer.HTTPRequest) => {
       if (this.restrictRequest(interceptedRequest.url())) {
         interceptedRequest.abort();
@@ -272,67 +264,53 @@ export class Renderer {
         interceptedRequest.continue();
       }
     });
-
+  
     if (timezoneId) {
       await page.emulateTimezone(timezoneId);
     }
-
+  
     let response: puppeteer.HTTPResponse | null = null;
-
+  
     try {
-      // Navigate to page. Wait until there are no oustanding network requests.
       response = await page.goto(url, {
         timeout: this.config.timeout,
         waitUntil: 'networkidle0',
       });
+  
+      // Wait for the page to be ready
+      await page.waitForFunction('window.rendertronReady === true', {
+        timeout: 60000, // Wait up to 60 seconds
+      });
     } catch (e) {
       console.error(e);
     }
-
+  
     if (!response) {
       await page.close();
       if (this.config.closeBrowser) {
         await this.browser.close();
       }
-      throw new ScreenshotError('NoResponse');
+      throw new Error('NoResponse');
     }
-
-    // Disable access to compute metadata. See
-    // https://cloud.google.com/compute/docs/storing-retrieving-metadata.
+  
     if (response.headers()['metadata-flavor'] === 'Google') {
       await page.close();
       if (this.config.closeBrowser) {
         await this.browser.close();
       }
-      throw new ScreenshotError('Forbidden');
+      throw new Error('Forbidden');
     }
-
-    // Must be jpeg & binary format.
-    const screenshotOptions: ScreenshotOptions = {
-      type: options?.type || 'jpeg',
-      encoding: options?.encoding || 'binary',
-    };
-    // Screenshot returns a buffer based on specified encoding above.
-    // https://github.com/GoogleChrome/puppeteer/blob/v1.8.0/docs/api.md#pagescreenshotoptions
-    const buffer = (await page.screenshot(screenshotOptions)) as Buffer;
+  
+    const screenshot = await page.screenshot(options);
+  
+    if (!(screenshot instanceof Buffer)) {
+      throw new Error('ScreenshotFailed');
+    }
+  
     await page.close();
     if (this.config.closeBrowser) {
       await this.browser.close();
     }
-    return buffer;
-  }
-}
-
-type ErrorType = 'Forbidden' | 'NoResponse';
-
-export class ScreenshotError extends Error {
-  type: ErrorType;
-
-  constructor(type: ErrorType) {
-    super(type);
-
-    this.name = this.constructor.name;
-
-    this.type = type;
+    return screenshot;
   }
 }
