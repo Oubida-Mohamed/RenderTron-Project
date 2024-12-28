@@ -20,8 +20,8 @@ the License.
   setTimeout(() => {
     document.body.textContent = 'async loaded';
     window.renderComplete = true;
-  }, 30000);
+  }, 100000);
   setTimeout(() => {
     document.body.textContent = 'should not be reached';
-  }, 30000);
+  }, 100000);
 </script>
