@@ -50,7 +50,7 @@ export class ConfigManager {
       cacheDurationMinutes: (60 * 24).toString(),
       cacheMaxEntries: '100',
     },
-    timeout: 60000,
+    timeout: 100000,
     port: '4001',
     host: '0.0.0.0',
     width: 1000,

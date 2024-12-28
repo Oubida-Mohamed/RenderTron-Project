@@ -146,7 +146,7 @@ export class Renderer {
 
       // Wait for the page to indicate it's ready by checking window.rendertronReady
       await page.waitForFunction('window.rendertronReady === true', {
-        timeout: 60000, // Wait for 60 seconds max
+        timeout: 100000, // Wait for 60 seconds max
       });
 
     } catch (e) {
@@ -279,7 +279,7 @@ export class Renderer {
   
       // Wait for the page to be ready
       await page.waitForFunction('window.rendertronReady === true', {
-        timeout: 60000, // Wait up to 60 seconds
+        timeout: 100000, // Wait up to 60 seconds
       });
     } catch (e) {
       console.error(e);

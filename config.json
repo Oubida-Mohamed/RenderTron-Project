@@ -1,16 +1,13 @@
 {
-
+  "cache": null,
+  "timeout": 200000,
   "port": "4001",
   "host": "0.0.0.0",
   "puppeteerArgs": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
   "waitForPageLoad": true,
   "renderers": {
     "readyVariable": "window.rendertronReady"
-  },
-  "cache": "memory",
-  "timeout": 10000,  
-  "userAgentPattern": ".*",  
-  "proxy": true
+  }
 }
 
   
